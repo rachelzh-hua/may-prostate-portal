@@ -1,0 +1,5 @@
+.env.local
+.env*
+# Only ignore scratch/test HTML at the repo root — NOT the AnnData `_index` zarr nodes
+# (a bare `_*` here silently drops obs/_index & var/_index → ZarrNodeNotFoundError on Vercel).
+/_*.html

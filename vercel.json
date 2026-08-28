@@ -1,0 +1,35 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/data/vitessce/(.*)/.zarray", "destination": "/data/vitessce/$1/zarray" },
+    { "source": "/data/vitessce/(.*)/.zattrs", "destination": "/data/vitessce/$1/zattrs" },
+    { "source": "/data/vitessce/(.*)/.zgroup", "destination": "/data/vitessce/$1/zgroup" },
+    { "source": "/data/vitessce/(.*)/.zmetadata", "destination": "/data/vitessce/$1/zmetadata" },
+    { "source": "/", "destination": "/app.html" }
+  ],
+  "headers": [
+    {
+      "source": "/data/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    },
+    { "source": "/data/vitessce/:path*/.zarray",    "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/.zattrs",    "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/.zgroup",    "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/.zmetadata", "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/zarray",     "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/zattrs",     "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/zgroup",     "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] },
+    { "source": "/data/vitessce/:path*/zmetadata",  "headers": [{ "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }] }
+  ]
+}

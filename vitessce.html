@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vitessce · Aguado Aortic Valve</title>
+<link rel="icon" href="logo-icon.png" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- CommonJS interop shims required by the esm.sh Vitessce bundle -->
+<script>window.global=window;window.process={env:{NODE_ENV:'production'}};window.module={exports:{}};window.exports=window.module.exports;</script>
+<style>
+:root,[data-theme="dark"]{--bg:#09090b;--bg2:#0f0f12;--border:#27272a;--text:#fafafa;--text2:#a1a1aa;--text3:#71717a;--purple:#a855f7;--cyan:#06b6d4;--font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;}
+[data-theme="light"]{--bg:#f8fafc;--bg2:#ffffff;--border:#e2e8f0;--text:#1e293b;--text2:#64748b;--text3:#94a3b8;--purple:#7c3aed;--cyan:#0891b2;}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);overflow:hidden}
+.app{display:grid;grid-template-rows:48px 1fr;height:100vh;width:100vw}
+.hdr{display:flex;align-items:center;gap:14px;padding:0 14px;border-bottom:1px solid var(--border);background:var(--bg2)}
+.hdr .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:-.01em}
+.hdr .brand img{height:20px;width:auto;border-radius:4px}
+.hdr .brand .tag{font-size:9px;font-weight:600;color:#fff;background:var(--purple);padding:1px 6px;border-radius:5px;letter-spacing:.03em}
+.hdr .sub{font-size:11px;color:var(--text3);font-weight:400}
+.hdr .spacer{flex:1}
+.hsel{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-family:var(--font);font-size:12px;cursor:pointer;max-width:280px}
+.hbtn{background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-family:var(--font);font-size:12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.hbtn:hover{color:var(--text);border-color:var(--purple)}
+#stage{position:relative;background:var(--bg)}
+#root{position:absolute;inset:0}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--bg);z-index:20;color:var(--text3);font-size:13px;text-align:center;padding:24px}
+#overlay.hidden{display:none}
+.spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--purple);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.errbox{max-width:560px;color:#f87171;font-family:var(--mono);font-size:11px;white-space:pre-wrap;text-align:left;line-height:1.5}
+.note{font-size:11px;color:var(--text3);max-width:560px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="brand"><img src="logo-icon.png" alt="" onerror="this.style.display='none'"><span class="tag">VITESSCE</span>
+      <span class="sub">Aguado aortic valve · coordinated multi-view</span></div>
+    <div class="spacer"></div>
+    <select class="hsel" id="ds-select" onchange="loadDataset(this.value)" title="Choose a dataset"></select>
+    <button class="hbtn" id="theme-btn" onclick="toggleTheme()" title="Toggle light / dark">◐ Theme</button>
+    <a class="hbtn" href="app.html" title="Back to the main portal">← Portal</a>
+  </div>
+  <div id="stage">
+    <div id="root"></div>
+    <div id="overlay"><div class="spin"></div><div id="overlay-msg">Loading Vitessce…</div></div>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{
+ "react":"/data/vitessce/vendor/react.js",
+ "react-dom":"/data/vitessce/vendor/react-dom.js",
+ "react-dom/client":"/data/vitessce/vendor/react-dom-client.js",
+ "vitessce":"/data/vitessce/vendor/vitessce.js"
+}}
+</script>
+<script type="module">
+let React, createRoot, Vitessce, root, currentSid=null, INDEX=null;
+
+const $=id=>document.getElementById(id);
+const overlay=(html,spin=true)=>{const o=$('overlay');o.classList.remove('hidden');
+  o.innerHTML=(spin?'<div class="spin"></div>':'')+'<div id="overlay-msg">'+html+'</div>';};
+const hideOverlay=()=>$('overlay').classList.add('hidden');
+
+function getTheme(){try{return localStorage.getItem('nf_theme')||'dark'}catch(e){return 'dark'}}
+function applyTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem('nf_theme',t)}catch(e){}}
+window.toggleTheme=()=>{applyTheme(getTheme()==='dark'?'light':'dark');if(currentSid)loadDataset(currentSid);};
+
+function stageHeight(){return Math.max(320, window.innerHeight-48);}
+
+// Resolve a config's (relative) store urls against the config file's own URL, so the
+// page is deploy-portable (localhost or any static host) with no baked-in origin.
+function absolutize(config, cfgUrl){
+  (config.datasets||[]).forEach(ds=>(ds.files||[]).forEach(f=>{
+    if(f.url) f.url=new URL(f.url, cfgUrl).href;
+  }));
+  return config;
+}
+
+window.loadDataset=async function(sid){
+  currentSid=sid;
+  overlay('Loading '+sid+' …');
+  try{
+    const cfgUrl=new URL('data/vitessce/'+sid+'.config.json', window.location.href);
+    const res=await fetch(cfgUrl);
+    if(!res.ok) throw new Error('config '+sid+' → HTTP '+res.status);
+    const config=absolutize(await res.json(), cfgUrl);
+    root.render(React.createElement(Vitessce, {
+      key: sid, config, theme: getTheme(), height: stageHeight(),
+    }));
+    // Vitessce mounts asynchronously; give the loaders a moment, then reveal.
+    setTimeout(hideOverlay, 600);
+  }catch(e){
+    overlay('<div class="errbox">Could not load '+sid+':\n'+((e&&e.message)||e)+'</div>', false);
+  }
+};
+
+function buildSwitcher(datasets){
+  const sel=$('ds-select');
+  const groups={atlas:[],visium:[],scrna:[]};
+  datasets.forEach(d=>{(d.sid==='atlas'?groups.atlas:groups[d.modality]||groups.scrna).push(d);});
+  const og=(label,items)=>items.length?('<optgroup label="'+label+'">'+
+     items.map(d=>'<option value="'+d.sid+'">'+d.name+'</option>').join('')+'</optgroup>'):'';
+  sel.innerHTML=og('Integrated', groups.atlas)+og('Visium spatial', groups.visium)+og('scRNA-seq', groups.scrna);
+}
+
+async function init(){
+  overlay('Loading Vitessce engine…');
+  applyTheme(getTheme());
+  try{
+    React=(await import('react')).default;
+    ({createRoot}=await import('react-dom/client'));
+    ({Vitessce}=await import('vitessce'));
+  }catch(e){
+    overlay('<div class="errbox">Failed to load the Vitessce engine from the CDN.\n'+((e&&e.message)||e)+
+            '\n\nThis page needs internet access to esm.sh.</div>', false);
+    return;
+  }
+  root=createRoot($('root'));
+  try{
+    const idx=await (await fetch('data/vitessce/index.json?ts='+Date.now())).json();
+    INDEX=idx;
+    if(!idx.datasets||!idx.datasets.length) throw new Error('no datasets in index.json');
+    buildSwitcher(idx.datasets);
+    const first=idx.datasets[0].sid;
+    $('ds-select').value=first;
+    await loadDataset(first);
+  }catch(e){
+    overlay('<div class="errbox">No Vitessce data found.\nRun: python3 pipeline/vitessce_export.py\n\n'+((e&&e.message)||e)+'</div>', false);
+    return;
+  }
+  let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(currentSid)loadDataset(currentSid);},250);});
+}
+init();
+</script>
+</body>
+</html>
